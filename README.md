@@ -1,4 +1,4 @@
-# Cloudextraction
+# Extraction
 
 Compile the project into a jar file under ```target```.
 
