@@ -22,8 +22,7 @@ public class Response extends fiResponse {
     //
     private boolean success;
     private String bucketname;
-    private String tablename;
-    public String dbname;
+
 
     private String error;
 
@@ -33,22 +32,6 @@ public class Response extends fiResponse {
 
     public void setBucketname(String bucketname) {
         this.bucketname = bucketname;
-    }
-
-    public String getTablename() {
-        return tablename;
-    }
-
-    public void setTablename(String tablename) {
-        this.tablename = tablename;
-    }
-
-    public String getDbname() {
-        return this.dbname;
-    }
-
-    public void setDbname(String dbname) {
-        this.dbname = dbname;
     }
 
     public boolean getSuccess() {
@@ -92,12 +75,6 @@ public class Response extends fiResponse {
         StringBuilder sb = new StringBuilder();
         sb.append("Bucketname=");
         sb.append(this.getBucketname());
-        sb.append(" | ");
-//        sb.append("dbname=");
-//        sb.append(this.getDbname());
-//        sb.append(" | ");
-        sb.append("tablename=");
-        sb.append(this.getTablename());
         sb.append(" | ");
         sb.append("fileName1=");
         sb.append(this.getFname_filtering());

@@ -12,7 +12,8 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 
 import java.io.File;
-
+import org.json.JSONException;
+import org.json.JSONObject;
 import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
@@ -35,7 +36,9 @@ import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.UUID;
-
+import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
+import com.amazonaws.services.sqs.model.SendMessageRequest;
 /**
  * uwt.lambda_test::handleRequest
  *
@@ -49,10 +52,12 @@ public class Extraction implements RequestHandler<Request, Response> {
     static Charset CHARSET = Charset.forName("US-ASCII");
     LambdaLogger logger = null;
     public AmazonS3 s3client;
+    public AmazonSQS sqsclient;
     private static final String LAMBDA_TEMP_DIRECTORY = "/tmp/";
     private static final String AWS_REGION = "us-east-1";
     private static final String FILTERED = "filtered/";
     private static final String LOADED = "loaded/";
+    private static final String queueURL = System.getenv("QUEUE_URL");
     private static String bucketName;
     private static String dbName;
     private static String tableName;
@@ -74,6 +79,7 @@ public class Extraction implements RequestHandler<Request, Response> {
 
         //setup S3 client :
         s3client = AmazonS3ClientBuilder.standard().withRegion(AWS_REGION).build();
+        sqsclient = AmazonSQSClientBuilder.standard().withRegion(AWS_REGION).build();
 
         // Register function
         register reg = new register(logger);
@@ -114,7 +120,7 @@ public class Extraction implements RequestHandler<Request, Response> {
             ResultSet rs = ps.executeQuery();
 
             //list file for debugging:
-            listFile(LAMBDA_TEMP_DIRECTORY);
+//            listFile(LAMBDA_TEMP_DIRECTORY);
 
             ps = con.prepareStatement("select \"Region\",\"Country\", \"Item Type\", "
                     + "avg(\"Units Sold\"), min(\"Units Sold\"),  max(\"Units Sold\"),\n"
@@ -122,11 +128,10 @@ public class Extraction implements RequestHandler<Request, Response> {
                     + tableName + "  WHERE  \"Item Type\" = \"Clothes\";");
 //            ps = con.prepareStatement("select * from sale_table;");
             rs = ps.executeQuery();
-            String timeStamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(Calendar.getInstance().getTime());
+//            String timeStamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(Calendar.getInstance().getTime());
 
 
-            String filesave_filtering = timeStamp + "-" + transactionid + "-filtering.csv";
-//            System.out.print(" filesave_filtering is  ################" +filesave_filtering);
+            String filesave_filtering = transactionid + "-filtering.csv";
 
             saveData(rs, bucketName, filesave_filtering);
 
@@ -136,24 +141,27 @@ public class Extraction implements RequestHandler<Request, Response> {
                     + tableName + "  group by \"Region\",\"Country\", \"Item Type\";");
 //            ps = con.prepareStatement("select * from sale_table;");
             rs = ps.executeQuery();
-//            listFile(LAMBDA_TEMP_DIRECTORY);
 
-//            System.out.println(timeStamp);
-            String filesave_aggregate = timeStamp + "-" + transactionid + "-aggregate.csv";
-
-//            System.out.print(" filesave_aggregate is  ################" +filesave_aggregate);
+            String filesave_aggregate = transactionid + "-aggregate.csv";
             saveData(rs, bucketName, filesave_aggregate);
-//            String s = filesave_aggregate;
+
             filesave_filtering = filesave_filtering.substring(filesave_filtering.indexOf("/") + 1);
             filesave_filtering.trim();
             filesave_aggregate = filesave_aggregate.substring(filesave_aggregate.indexOf("/") + 1);
             filesave_aggregate.trim();
+
             //send response
             setResponseObj(r, true, null, bucketName, filesave_filtering, filesave_aggregate);
             // Delete the sample objects.
           
             setResponseObj(r, true, null, bucketName, filesave_filtering, filesave_aggregate);
-        
+
+            //send msg to sqs if queueURL presents:
+            if (queueURL != null) {
+                sendMsgToSQS(filesave_filtering, filesave_aggregate);
+            }
+
+
             rs.close();
             con.close();
 
@@ -165,12 +173,32 @@ public class Extraction implements RequestHandler<Request, Response> {
             setResponseObj(r, false, e.toString() ,  null, null, null);
             
         }
-        // Upload three sample objects.
-//        RemoveFiles(bucketName, filterd);
+
         return r;
     }
 
-    //insert data from csv to table
+
+    /**
+     * Send msg (=response) to sqs
+     * @param filterFileName
+     * @param aggrFileName
+     * @throws JSONException
+     */
+    private void sendMsgToSQS(String filterFileName, String aggrFileName) throws JSONException {
+        System.out.println("Send msg to SQS ... " + queueURL + ", " + filterFileName + ", " + aggrFileName);
+        //build payload:
+        String payload = new JSONObject()
+                .put("success", true)
+                .put("fname_filtering", filterFileName)
+                .put("fname_aggregate", aggrFileName).toString();
+        System.out.println("payload: " + payload);
+        //send response message to sqs:
+        SendMessageRequest send_msg_request = new SendMessageRequest()
+                .withQueueUrl(queueURL)
+                .withMessageBody(payload)
+                .withDelaySeconds(5);
+        sqsclient.sendMessage(send_msg_request);
+    }
     /**
      * Helper method
      *
@@ -196,7 +224,6 @@ public class Extraction implements RequestHandler<Request, Response> {
 
         if (success) {
             r.setSuccess(true);
-            r.setDbname(dbName);
             r.setFname_filtering(filesave_filtering);
             r.setFname_aggregate(filesave_aggregate);
         } else {
