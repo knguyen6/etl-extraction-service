@@ -91,6 +91,7 @@ public class Extraction implements RequestHandler<Request, Response> {
 
         String precheckErrMsg = validateParams(request);
         if (precheckErrMsg != null) {
+            logger.log("Something is missing: " + precheckErrMsg);
             setResponseObj(r, false, precheckErrMsg,  null, null, null);
             return r;
         }
@@ -198,6 +199,7 @@ public class Extraction implements RequestHandler<Request, Response> {
                 .withMessageBody(payload)
                 .withDelaySeconds(5);
         sqsclient.sendMessage(send_msg_request);
+        System.out.println("Sent messge to SQS !!!");
     }
     /**
      * Helper method
@@ -293,7 +295,6 @@ public class Extraction implements RequestHandler<Request, Response> {
             meta.setContentLength(bytes.length);
             meta.setContentType("text/plain");
 
-            // Stream data to S3
             s3client.putObject(bucketName, objKey, is, meta);
 
         } catch (Exception e) {
