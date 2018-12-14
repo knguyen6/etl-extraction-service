@@ -1,3 +1,6 @@
+
+# ETL project 
+
 # Extraction
 
 Compile the project into a jar file under ```target```.
@@ -19,6 +22,12 @@ Depends on file size.
 
 ### Timeout
 depend, start with 1 or 2 mins, could go up to 15 mins.
+
+### Environement Variables:
+
+If want to run 'Asynchronous' implementation, add environment variable:
+```QUEUE_URL```
+
 
 ## Request
 Request body required ```bucketname, dbname, tablename, transactionid```
