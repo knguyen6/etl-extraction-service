@@ -11,7 +11,11 @@ Then upload to lambda.
 ```Java8```
 
 ## Memory(MB): 
-```512MB``` at least
+
+Depends on file size.
+
+
+```512MB``` or ```640MB```
 
 ### Timeout
 depend, start with 1 or 2 mins, could go up to 15 mins.
@@ -39,8 +43,8 @@ Request body required ```bucketname, dbname, tablename, transactionid```
   "newcontainer": 1,
   "success": true,
   "dbname": "my_bucket",
-  "fname_filtering": "20181210-022249-e39994fe-edd0-4673-b1f5-8432374caa94-filtering.csv",
-  "fname_aggregate": "20181210-022249-e39994fe-edd0-4673-b1f5-8432374caa94-aggregate.csv"
+  "fname_filtering": "e39994fe-edd0-4673-b1f5-8432374caa94-filtering.csv",
+  "fname_aggregate": "e39994fe-edd0-4673-b1f5-8432374caa94-aggregate.csv"
 }
 ```
 
